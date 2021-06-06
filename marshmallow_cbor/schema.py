@@ -24,14 +24,13 @@ class Schema(mSchema):
 
     @pre_load
     def unwrap_tag(self, tag, many, **kwargs):
-        if self.opts.tag is not None:
+        if self.opts.tag is not None and isinstance(tag, cbor2.CBORTag):
             if tag.tag == self.opts.tag:
                 data = tag.value
             else:
                 raise ValueError
         else:
             data = tag
-        if self.opts.embed:
+        if self.opts.embed and isinstance(data, bytes):
             data = cbor2.loads(data)
         return data
-

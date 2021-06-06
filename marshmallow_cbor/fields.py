@@ -1,5 +1,5 @@
 from datetime import datetime
-from uuid import UUID
+import uuid
 
 from marshmallow import fields as m_fields
 
@@ -22,7 +22,7 @@ class UUID(m_fields.UUID):
         return value
 
     def _deserialize(self, value, attr, data, **kwargs):
-        if isinstance(value, UUID):
+        if isinstance(value, uuid.UUID):
             return value
         else:
             return super()._deserialize(value, attr, data, **kwargs)
