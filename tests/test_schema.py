@@ -5,7 +5,14 @@ import uuid
 import pytest
 
 from marshmallow_cbor import Schema
-from marshmallow_cbor.fields import AwareDateTime, Decimal, UUID, Boolean
+from marshmallow_cbor.fields import (
+    AwareDateTime,
+    Decimal,
+    UUID,
+    Boolean,
+    NestedTagged,
+    NestedEmbedded,
+)
 
 
 class DateTimeSchema(Schema):
@@ -32,9 +39,26 @@ class EmbedSchema(Schema):
     a = Boolean()
     b = Decimal()
 
+
+class WithEmbed(Schema):
+    payload = NestedEmbedded(EmbedSchema)
+
+
+class NestedTaggedSchema(Schema):
+    a = NestedTagged(UUIDSchema, tag=3360)
+    b = Boolean()
+
+
+class PayloadSchema(Schema):
+    a = Boolean()
+    b = Boolean()
+
+
+class TagWithinTagSchema(Schema):
+    payload = NestedTagged(PayloadSchema, tag=5991)
+
     class Meta:
-        tag = 4096
-        embed = True
+        tag = 5990
 
 
 @pytest.mark.parametrize(
@@ -61,15 +85,26 @@ class EmbedSchema(Schema):
             b'd91000a26162c48200016161f5',
         ),
         (
-            EmbedSchema(),
-            {'a': True, 'b': decimal.Decimal(1)},
-            b'd910004aa26162c48200016161f5',
+            WithEmbed(),
+            {'payload': {'a': True, 'b': decimal.Decimal(1)}},
+            b'a1677061796c6f61644aa26162c48200016161f5',
         ),
+        (
+            NestedTaggedSchema(),
+            {'a': {'uid': uuid.uuid5(uuid.NAMESPACE_DNS, 'example.com')}, 'b': True},
+            b'a26162f56161d90d20a163756964d82550cfbff0d193755685968c48ce8b15ae17',
+        ),
+        # 	(
+        #            TagWithinTagSchema(),
+        #            {'payload': {'a': True, 'b': False}},
+        #            b'd91766d91767a26162f46161f5'
+        #        ),
     ],
 )
 def test_schema_dumps(schema, source, expected):
 
     data = schema.load(source)
+    print(data)
 
     encoded = schema.dumps(data)
 

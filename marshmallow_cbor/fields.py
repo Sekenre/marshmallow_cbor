@@ -1,7 +1,47 @@
 import uuid
 from datetime import datetime
 
+import cbor2
 from marshmallow import fields as m_fields
+
+
+# Fields for custom tags (not handled natively by cbor2)
+
+
+class NestedTagged(m_fields.Nested):
+    def __init__(self, schema, *, tag=None, **kwargs):
+        super().__init__(schema, **kwargs)
+        self._tag = tag
+
+    def _serialize(self, nested_obj, attr, obj, **kwargs):
+        serialized = super()._serialize(nested_obj, attr, obj, **kwargs)
+        if self._tag is not None:
+            return cbor2.CBORTag(self._tag, serialized)
+        else:
+            return serialized
+
+    def _deserialize(self, value, attr, data, partial=None, **kwargs):
+        if isinstance(value, cbor2.CBORTag):
+            if value.tag == self._tag:
+                value = value.value
+            else:
+                raise ValueError
+        if isinstance(value, dict):
+            if value.get('__cbortag', -1) == self._tag:
+                value = value.get('__value', None)
+        return super()._deserialize(value, attr, data, partial, **kwargs)
+
+
+class NestedEmbedded(m_fields.Nested):
+    def _serialize(self, nested_obj, attr, obj, **kwargs):
+        serialized = super()._serialize(nested_obj, attr, obj, **kwargs)
+        return cbor2.dumps(serialized)
+
+    def _deserialize(self, value, attr, data, partial=None, **kwargs):
+        if isinstance(value, bytes):
+            value = cbor2.loads(value)
+        return super()._deserialize(value, attr, data, partial, **kwargs)
+
 
 # Native CBOR fields that can just be passed through
 
