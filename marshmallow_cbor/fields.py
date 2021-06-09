@@ -26,9 +26,6 @@ class NestedTagged(m_fields.Nested):
                 value = value.value
             else:
                 raise ValueError
-        if isinstance(value, dict):
-            if value.get('__cbortag', -1) == self._tag:
-                value = value.get('__value', None)
         return super()._deserialize(value, attr, data, partial, **kwargs)
 
 

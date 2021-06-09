@@ -4,6 +4,8 @@ import uuid
 
 import pytest
 
+from cbor2 import CBORTag
+from marshmallow import pre_load, post_dump
 from marshmallow_cbor import Schema
 from marshmallow_cbor.fields import (
     AwareDateTime,
@@ -49,16 +51,18 @@ class NestedTaggedSchema(Schema):
     b = Boolean()
 
 
-class PayloadSchema(Schema):
+class TagWithinTagSchema(Schema):
     a = Boolean()
     b = Boolean()
 
+    @pre_load
+    def unpack_tags(self, data, **kwargs):
+        if data.tag == 5990 and data.value.tag == 5991:
+            return data.value.value
 
-class TagWithinTagSchema(Schema):
-    payload = NestedTagged(PayloadSchema, tag=5991)
-
-    class Meta:
-        tag = 5990
+    @post_dump
+    def pack_tags(self, data, **kwargs):
+        return CBORTag(5990, CBORTag(5991, data))
 
 
 @pytest.mark.parametrize(
@@ -94,11 +98,11 @@ class TagWithinTagSchema(Schema):
             {'a': {'uid': uuid.uuid5(uuid.NAMESPACE_DNS, 'example.com')}, 'b': True},
             b'a26162f56161d90d20a163756964d82550cfbff0d193755685968c48ce8b15ae17',
         ),
-        # 	(
-        #            TagWithinTagSchema(),
-        #            {'payload': {'a': True, 'b': False}},
-        #            b'd91766d91767a26162f46161f5'
-        #        ),
+        (
+            TagWithinTagSchema(),
+            CBORTag(5990, CBORTag(5991, {'a': True, 'b': False})),
+            b'd91766d91767a26162f46161f5',
+        ),
     ],
 )
 def test_schema_dumps(schema, source, expected):
