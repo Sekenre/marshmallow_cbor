@@ -2,30 +2,29 @@ import uuid
 from datetime import datetime
 
 import cbor2
-from marshmallow import fields as m_fields
+from marshmallow import fields as m_fields, ValidationError
 
 
 # Fields for custom tags (not handled natively by cbor2)
 
 
 class NestedTagged(m_fields.Nested):
-    def __init__(self, schema, *, tag=None, **kwargs):
+    def __init__(self, schema, *, tag, **kwargs):
+        if not isinstance(tag, int) or tag <= 0:
+            raise ValueError('tag must be an int > 0')
         super().__init__(schema, **kwargs)
         self._tag = tag
 
     def _serialize(self, nested_obj, attr, obj, **kwargs):
         serialized = super()._serialize(nested_obj, attr, obj, **kwargs)
-        if self._tag is not None:
-            return cbor2.CBORTag(self._tag, serialized)
-        else:
-            return serialized
+        return cbor2.CBORTag(self._tag, serialized)
 
     def _deserialize(self, value, attr, data, partial=None, **kwargs):
         if isinstance(value, cbor2.CBORTag):
             if value.tag == self._tag:
                 value = value.value
             else:
-                raise ValueError
+                raise ValidationError(f'unexpected tag: {value.tag}')
         return super()._deserialize(value, attr, data, partial, **kwargs)
 
 

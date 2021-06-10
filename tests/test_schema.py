@@ -5,7 +5,7 @@ import uuid
 import pytest
 
 from cbor2 import CBORTag
-from marshmallow import pre_load, post_dump
+from marshmallow import pre_load, post_dump, ValidationError
 from marshmallow_cbor import Schema
 from marshmallow_cbor.fields import (
     AwareDateTime,
@@ -117,3 +117,32 @@ def test_schema_dumps(schema, source, expected):
     data2 = schema.loads(encoded)
 
     assert data == data2
+
+
+class IncorrectTagSchema(Schema):
+    a = Boolean()
+    b = Boolean()
+
+    class Meta:
+        tag = 4096
+
+
+class IncorrectNestedTag(Schema):
+    a = NestedTagged(UUIDSchema, tag=3017)
+    b = Boolean()
+
+
+@pytest.mark.parametrize(
+    'schema, source, expected',
+    [
+        (IncorrectTagSchema(), b'D91001A26161F56162F4', ValidationError),
+        (
+            IncorrectNestedTag(),
+            b'a26162f56161d90d20a163756964d82550cfbff0d193755685968c48ce8b15ae17',
+            ValidationError,
+        ),
+    ],
+)
+def test_exceptions(schema, source, expected):
+    with pytest.raises(expected):
+        schema.loads(binascii.unhexlify(source))
