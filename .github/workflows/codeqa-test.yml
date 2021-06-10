@@ -1,0 +1,48 @@
+name: Python codeqa/test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.x
+    - uses: actions/cache@v2
+      with:
+        path: ~/.cache/pip
+        key: pip-lint
+    - name: Install dependencies
+      run: pip install flake8
+    - name: Run flake8
+      run: flake8 marshmallow_cbor examples tests
+
+  test:
+    needs: [lint]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: [3.9]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - uses: actions/cache@v2
+      with:
+        path: ~/.cache/pip
+        key: pip-test-${{ matrix.python-version }}-${{ matrix.os }}
+    - name: Install dependencies
+      run: pip install -e .[test] coveralls
+    - name: Test with pytest
+      run: pytest
+
