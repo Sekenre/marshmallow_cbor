@@ -1,4 +1,3 @@
-from binascii import hexlify, unhexlify
 from marshmallow_cbor import Schema, fields
 
 
@@ -6,6 +5,7 @@ class PointSchema(Schema):
     """
     Simple tagged schema, this as set as an option on the Meta class
 
+    >>> from binascii import hexlify, unhexlify
     >>> point = {'x': 1.2, 'y': 1.3, 'z': 1.4}
     >>> schema = PointSchema()
     >>> hexlify(schema.dumps(point))

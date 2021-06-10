@@ -1,4 +1,3 @@
-from binascii import hexlify
 from marshmallow_cbor import Schema, fields
 
 
@@ -7,6 +6,7 @@ class PersonSchema(Schema):
     Simple data with string keys and values, Can be represented with JSON. No difference
     from regular Marshmallow
 
+    >>> from binascii import hexlify
     >>> person = {
     ...     "name": "Simon",
     ...     "occupation": "Skydiving Instructor",
