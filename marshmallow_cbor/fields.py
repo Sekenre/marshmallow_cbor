@@ -2,21 +2,24 @@ import uuid
 from datetime import datetime
 
 import cbor2
-from marshmallow import fields as m_fields, ValidationError
+from marshmallow import fields as m_fields
 
 
 # Fields for custom tags (not handled natively by cbor2)
 
 
-class NestedTagged(m_fields.Nested):
-    def __init__(self, schema, *, tag, **kwargs):
+class Tagged(m_fields.Field):
+    default_error_messages = {'wrong_tag': 'unexpected tag'}
+
+    def __init__(self, tagged_field, *, tag, **kwargs):
         if not isinstance(tag, int) or tag <= 0:
             raise ValueError('tag must be an int > 0')
-        super().__init__(schema, **kwargs)
+        self._tagged_field = tagged_field
         self._tag = tag
+        super().__init__(**kwargs)
 
     def _serialize(self, nested_obj, attr, obj, **kwargs):
-        serialized = super()._serialize(nested_obj, attr, obj, **kwargs)
+        serialized = self._tagged_field._serialize(nested_obj, attr, obj, **kwargs)
         return cbor2.CBORTag(self._tag, serialized)
 
     def _deserialize(self, value, attr, data, partial=None, **kwargs):
@@ -24,19 +27,23 @@ class NestedTagged(m_fields.Nested):
             if value.tag == self._tag:
                 value = value.value
             else:
-                raise ValidationError(f'unexpected tag: {value.tag}')
-        return super()._deserialize(value, attr, data, partial, **kwargs)
+                self.make_error('wrong_tag', input=value)
+        return self._tagged_field._deserialize(value, attr, data, partial, **kwargs)
 
 
-class NestedEmbedded(m_fields.Nested):
+class Embedded(m_fields.Field):
+    def __init__(self, embedded_field, **kwargs):
+        self._embedded_field = embedded_field
+        super().__init__(**kwargs)
+
     def _serialize(self, nested_obj, attr, obj, **kwargs):
-        serialized = super()._serialize(nested_obj, attr, obj, **kwargs)
+        serialized = self._embedded_field._serialize(nested_obj, attr, obj, **kwargs)
         return cbor2.dumps(serialized)
 
     def _deserialize(self, value, attr, data, partial=None, **kwargs):
         if isinstance(value, bytes):
             value = cbor2.loads(value)
-        return super()._deserialize(value, attr, data, partial, **kwargs)
+        return self._embedded_field._deserialize(value, attr, data, partial, **kwargs)
 
 
 # Native CBOR fields that can just be passed through

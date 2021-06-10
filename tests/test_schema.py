@@ -12,8 +12,9 @@ from marshmallow_cbor.fields import (
     Decimal,
     UUID,
     Boolean,
-    NestedTagged,
-    NestedEmbedded,
+    Tagged,
+    Embedded,
+    Nested,
 )
 
 
@@ -43,11 +44,11 @@ class EmbedSchema(Schema):
 
 
 class WithEmbed(Schema):
-    payload = NestedEmbedded(EmbedSchema)
+    payload = Embedded(Nested(EmbedSchema))
 
 
 class NestedTaggedSchema(Schema):
-    a = NestedTagged(UUIDSchema, tag=3360)
+    a = Tagged(Nested(UUIDSchema), tag=3360)
     b = Boolean()
 
 
@@ -128,7 +129,7 @@ class IncorrectTagSchema(Schema):
 
 
 class IncorrectNestedTag(Schema):
-    a = NestedTagged(UUIDSchema, tag=3017)
+    a = Tagged(Nested(UUIDSchema), tag=3017)
     b = Boolean()
 
 

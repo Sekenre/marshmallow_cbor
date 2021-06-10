@@ -24,9 +24,9 @@ class KidSchema(Schema):
 
 
 class CWTMACSchema(Schema):
-    alg = fields.NestedEmbedded(AlgSchema)
-    kid = fields.NestedEmbedded(KidSchema)
-    payload = fields.NestedEmbedded(CWTClaimsSchema)
+    alg = fields.Embedded(fields.Nested(AlgSchema))
+    kid = fields.Embedded(fields.Nested(KidSchema))
+    payload = fields.Embedded(fields.Nested(CWTClaimsSchema))
     tag = fields.Raw()
 
     @pre_load
