@@ -1,8 +1,10 @@
+import ipaddress
 import uuid
-from datetime import datetime
+from calendar import timegm
+from datetime import datetime, timezone
 
 import cbor2
-from marshmallow import fields as m_fields
+from marshmallow import fields as m_fields, utils
 
 
 # Fields for custom tags (not handled natively by cbor2)
@@ -12,7 +14,7 @@ class Tagged(m_fields.Field):
     default_error_messages = {'wrong_tag': 'unexpected tag'}
 
     def __init__(self, tagged_field, *, tag, **kwargs):
-        if not isinstance(tag, int) or tag <= 0:
+        if not isinstance(tag, int) or tag < 0:
             raise ValueError('tag must be an int > 0')
         self._tagged_field = tagged_field
         self._tag = tag
@@ -28,7 +30,9 @@ class Tagged(m_fields.Field):
                 value = value.value
             else:
                 self.make_error('wrong_tag', input=value)
-        return self._tagged_field._deserialize(value, attr, data, partial, **kwargs)
+        return self._tagged_field._deserialize(
+            value, attr, data, partial=partial, **kwargs
+        )
 
 
 class Embedded(m_fields.Field):
@@ -43,15 +47,40 @@ class Embedded(m_fields.Field):
     def _deserialize(self, value, attr, data, partial=None, **kwargs):
         if isinstance(value, bytes):
             value = cbor2.loads(value)
-        return self._embedded_field._deserialize(value, attr, data, partial, **kwargs)
+        return self._embedded_field._deserialize(
+            value, attr, data, partial=partial, **kwargs
+        )
 
 
 # Native CBOR fields that can just be passed through
 
 
-class AwareDateTime(m_fields.AwareDateTime):
+class Timestamp(m_fields.AwareDateTime):
+    """Unix epoch seconds in UTC.
+
+    If you want it to be on the wire as an CBOR Tagged timestamp use
+    fields.Tagged(Timestamp(), tag=1)
+    """
+
     def _serialize(self, value, attr, obj, **kwargs):
+        if isinstance(value, datetime):
+            if not value.microsecond:
+                return timegm(value.utctimetuple())
+            else:
+                return timegm(value.utctimetuple()) + value.microsecond / 1000000
         return value
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        if isinstance(value, datetime):
+            return value
+        elif isinstance(value, str):
+            return super()._deserialize(value, attr, data, **kwargs)
+        else:
+            return datetime.fromtimestamp(value, tz=timezone.utc)
+
+
+class AwareDateTime(m_fields.AwareDateTime):
+    _serialize = m_fields.Field._serialize
 
     def _deserialize(self, value, attr, data, **kwargs):
         if isinstance(value, datetime):
@@ -61,14 +90,63 @@ class AwareDateTime(m_fields.AwareDateTime):
 
 
 class UUID(m_fields.UUID):
-    def _serialize(self, value, attr, obj, **kwargs):
-        return value
+    _serialize = m_fields.Field._serialize
 
     def _deserialize(self, value, attr, data, **kwargs):
         if isinstance(value, uuid.UUID):
             return value
         else:
             return super()._deserialize(value, attr, data, **kwargs)
+
+
+class IP(m_fields.IP):
+    _serialize = m_fields.Field._serialize
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        if isinstance(value, self.DESERIALIZATION_CLASS):
+            return value
+        else:
+            return super()._deserialize(value, attr, data, **kwargs)
+
+
+IPv4 = type('IPv4', (m_fields.IPv4, IP), {})
+IPv6 = type('IPv6', (m_fields.IPv6, IP), {})
+IPv4Interface = m_fields.IPv4Interface
+IPv6Interface = m_fields.IPv6Interface
+
+
+class IPNetwork(m_fields.Field):
+    default_error_messages = {"invalid_ip_network": "Not a valid IP Network."}
+
+    DESERIALIZATION_CLASS = None
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        if value is None:
+            return None
+        if isinstance(value, self.DESERIALIZATION_CLASS):
+            return value
+        try:
+            return (self.DESERIALIZATION_CLASS or ipaddress.ip_interface)(
+                utils.ensure_text_type(value)
+            )
+        except (ValueError, TypeError) as error:
+            raise self.make_error("invalid_ip_network") from error
+
+
+class IPv4Network(IPNetwork):
+    """A IPv4 Network field. (without the host part)"""
+
+    default_error_messages = {"invalid_ip_network": "Not a valid IPv4 network."}
+
+    DESERIALIZATION_CLASS = ipaddress.IPv4Network
+
+
+class IPv6Network(IPNetwork):
+    """A IPv6 Network field. (without the host part)"""
+
+    default_error_messages = {"invalid_ip_network": "Not a valid IPv6 network."}
+
+    DESERIALIZATION_CLASS = ipaddress.IPv6Network
 
 
 # Unchanged fields from marshmallow
@@ -92,12 +170,6 @@ TimeDelta = m_fields.TimeDelta
 Url = m_fields.Url
 URL = m_fields.URL
 Email = m_fields.Email
-IP = m_fields.IP
-IPv4 = m_fields.IPv4
-IPv6 = m_fields.IPv6
-IPInterface = m_fields.IPInterface
-IPv4Interface = m_fields.IPv4Interface
-IPv6Interface = m_fields.IPv6Interface
 Method = m_fields.Method
 Function = m_fields.Function
 Str = m_fields.Str

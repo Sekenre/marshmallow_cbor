@@ -9,9 +9,9 @@ class CWTClaimsSchema(Schema):
     iss = fields.Url(data_key=1, schemes=('coap',))
     sub = fields.String(data_key=2)
     aud = fields.Url(data_key=3, schemes=('coap',))
-    exp = fields.Integer(data_key=4)
-    nbf = fields.Integer(data_key=5)
-    iat = fields.Integer(data_key=6)
+    exp = fields.Timestamp(data_key=4)
+    nbf = fields.Timestamp(data_key=5)
+    iat = fields.Timestamp(data_key=6)
     cti = fields.Raw(data_key=7)
 
 
@@ -55,6 +55,7 @@ class CWTMACSchema(Schema):
 
 
 if __name__ == '__main__':
+    from pprint import pprint
     schema = CWTClaimsSchema()
     claims = schema.loads(
         binascii.unhexlify(
@@ -63,7 +64,7 @@ if __name__ == '__main__':
             b'051a5610d9f0061a5610d9f007420b71'
         )
     )
-    print(claims)
+    pprint(claims)
     macd_cwt = binascii.unhexlify(
         b'd83dd18443a10104a1044c53796d6d65747269633235365850a70175636f6170'
         b'3a2f2f61732e6578616d706c652e636f6d02656572696b77037818636f61703a'
@@ -72,5 +73,5 @@ if __name__ == '__main__':
     )
     macd_schema = CWTMACSchema()
     macd_claims = macd_schema.loads(macd_cwt)
-    print(macd_claims)
+    pprint(macd_claims)
     print(binascii.hexlify(macd_schema.dumps(macd_claims)).decode())
