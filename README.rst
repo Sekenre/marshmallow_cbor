@@ -31,6 +31,6 @@ Please see the ``examples/`` folder in this repository.
 TODO
 ====
 
-* Tag single items in addition to schemas and nested schemas
-* Field support for all cbor2 supported datatypes
+* Tag single items in addition to schemas and nested schemas ✅
+* Field support for all cbor2 supported datatypes ✅(partial)
 * Add it to PyPI

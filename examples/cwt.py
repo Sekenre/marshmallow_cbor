@@ -1,4 +1,44 @@
-import binascii
+"""
+Experimenting with RFC 8392 CBOR Web Tokens
+
+>>> import binascii
+>>> from pprint import pprint
+>>> schema = CWTClaimsSchema()
+>>> claims = schema.loads(
+...     binascii.unhexlify(
+...         b'a70175636f61703a2f2f61732e6578616d706c652e636f6d02656572696b7703'
+...         b'7818636f61703a2f2f6c696768742e6578616d706c652e636f6d041a5612aeb0'
+...         b'051a5610d9f0061a5610d9f007420b71'
+...     )
+... )
+>>> pprint(claims)
+{'aud': 'coap://light.example.com',
+ 'cti': b'\\x0bq',
+ 'exp': datetime.datetime(2015, 10, 5, 17, 9, 4, tzinfo=datetime.timezone.utc),
+ 'iat': datetime.datetime(2015, 10, 4, 7, 49, 4, tzinfo=datetime.timezone.utc),
+ 'iss': 'coap://as.example.com',
+ 'nbf': datetime.datetime(2015, 10, 4, 7, 49, 4, tzinfo=datetime.timezone.utc),
+ 'sub': 'erikw'}
+>>> macd_cwt = binascii.unhexlify(
+...     b'd83dd18443a10104a1044c53796d6d65747269633235365850a70175636f6170'
+...     b'3a2f2f61732e6578616d706c652e636f6d02656572696b77037818636f61703a'
+...     b'2f2f6c696768742e6578616d706c652e636f6d041a5612aeb0051a5610d9f006'
+...     b'1a5610d9f007420b7148093101ef6d789200'
+... )
+>>> macd_schema = CWTMACSchema()
+>>> macd_claims = macd_schema.loads(macd_cwt)
+>>> pprint(macd_claims)
+{'alg': {'alg': 4},
+ 'kid': {'kid': b'Symmetric256'},
+ 'payload': {'aud': 'coap://light.example.com',
+         'cti': b'\\x0bq',
+         'exp': datetime.datetime(2015, 10, 5, 17, 9, 4, tzinfo=datetime.timezone.utc),
+         'iat': datetime.datetime(2015, 10, 4, 7, 49, 4, tzinfo=datetime.timezone.utc),
+         'iss': 'coap://as.example.com',
+         'nbf': datetime.datetime(2015, 10, 4, 7, 49, 4, tzinfo=datetime.timezone.utc),
+         'sub': 'erikw'},
+ 'tag': b'\\t1\\x01\\xefmx\\x92\\x00'}
+"""
 
 import cbor2
 from marshmallow import pre_load, post_dump, ValidationError
@@ -52,26 +92,3 @@ class CWTMACSchema(Schema):
     @post_dump
     def pack_tags(self, data, **kwargs):
         return cbor2.CBORTag(61, cbor2.CBORTag(17, data))
-
-
-if __name__ == '__main__':
-    from pprint import pprint
-    schema = CWTClaimsSchema()
-    claims = schema.loads(
-        binascii.unhexlify(
-            b'a70175636f61703a2f2f61732e6578616d706c652e636f6d02656572696b7703'
-            b'7818636f61703a2f2f6c696768742e6578616d706c652e636f6d041a5612aeb0'
-            b'051a5610d9f0061a5610d9f007420b71'
-        )
-    )
-    pprint(claims)
-    macd_cwt = binascii.unhexlify(
-        b'd83dd18443a10104a1044c53796d6d65747269633235365850a70175636f6170'
-        b'3a2f2f61732e6578616d706c652e636f6d02656572696b77037818636f61703a'
-        b'2f2f6c696768742e6578616d706c652e636f6d041a5612aeb0051a5610d9f006'
-        b'1a5610d9f007420b7148093101ef6d789200'
-    )
-    macd_schema = CWTMACSchema()
-    macd_claims = macd_schema.loads(macd_cwt)
-    pprint(macd_claims)
-    print(binascii.hexlify(macd_schema.dumps(macd_claims)).decode())
