@@ -1,4 +1,3 @@
-import binascii
 import datetime as dt
 import ipaddress
 
