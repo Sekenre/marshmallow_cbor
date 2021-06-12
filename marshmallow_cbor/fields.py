@@ -1,3 +1,4 @@
+import binascii
 import ipaddress
 import uuid
 from calendar import timegm
@@ -11,6 +12,12 @@ from marshmallow import fields as m_fields, utils
 
 
 class Tagged(m_fields.Field):
+    """Wrap a field in a CBOR Tag
+
+    :param tagged_field: Any field instance including ``fields.Nested`` schemas
+    :param tag: Tag ID.
+    """
+
     default_error_messages = {'wrong_tag': 'unexpected tag'}
 
     def __init__(self, tagged_field, *, tag, **kwargs):
@@ -36,6 +43,11 @@ class Tagged(m_fields.Field):
 
 
 class Embedded(m_fields.Field):
+    """Serialize a field as CBOR bytes
+
+    :param embedded_field: Any field instance including ``fields.Nested`` schemas
+    """
+
     def __init__(self, embedded_field, **kwargs):
         self._embedded_field = embedded_field
         super().__init__(**kwargs)
@@ -53,6 +65,40 @@ class Embedded(m_fields.Field):
 
 
 # Native CBOR fields that can just be passed through
+
+
+class Bytes(m_fields.Field):
+    """Instead of using Python's raw bytes type to represent CBOR bytes
+    we can chose to load them as strings. If you don't want to interpret
+    bytes objects just use ``fields.Raw()`` instead.
+
+    :param load_as: String representation of bytes object
+    """
+
+    LOAD_AS = {
+        None: lambda x: x,
+        'hex': lambda x: binascii.hexlify(x).decode(),
+        'utf8': lambda x: x.decode('utf8', errors='backslashescape'),
+    }
+    DUMP_AS = {
+        None: lambda x: x,
+        'hex': lambda x: binascii.unhexlify(x),
+        'utf8': lambda x: x.encode('utf8'),
+    }
+
+    def __init__(self, *, load_as=None, **kwargs):
+        try:
+            self._load_func = self.LOAD_AS[load_as]
+            self._dump_func = self.DUMP_AS[load_as]
+        except KeyError:
+            raise ValueError(f'unsupported bytes representation {load_as}')
+        super().__init__(**kwargs)
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        return self._dump_func(value)
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        return self._load_func(value)
 
 
 class Timestamp(m_fields.AwareDateTime):

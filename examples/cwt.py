@@ -13,7 +13,7 @@ Experimenting with RFC 8392 CBOR Web Tokens
 ... )
 >>> pprint(claims)
 {'aud': 'coap://light.example.com',
- 'cti': b'\\x0bq',
+ 'cti': '0b71',
  'exp': datetime.datetime(2015, 10, 5, 17, 9, 4, tzinfo=datetime.timezone.utc),
  'iat': datetime.datetime(2015, 10, 4, 7, 49, 4, tzinfo=datetime.timezone.utc),
  'iss': 'coap://as.example.com',
@@ -29,15 +29,15 @@ Experimenting with RFC 8392 CBOR Web Tokens
 >>> macd_claims = macd_schema.loads(macd_cwt)
 >>> pprint(macd_claims)
 {'alg': {'alg': 4},
- 'kid': {'kid': b'Symmetric256'},
+ 'kid': {'kid': 'Symmetric256'},
  'payload': {'aud': 'coap://light.example.com',
-         'cti': b'\\x0bq',
+         'cti': '0b71',
          'exp': datetime.datetime(2015, 10, 5, 17, 9, 4, tzinfo=datetime.timezone.utc),
          'iat': datetime.datetime(2015, 10, 4, 7, 49, 4, tzinfo=datetime.timezone.utc),
          'iss': 'coap://as.example.com',
          'nbf': datetime.datetime(2015, 10, 4, 7, 49, 4, tzinfo=datetime.timezone.utc),
          'sub': 'erikw'},
- 'tag': b'\\t1\\x01\\xefmx\\x92\\x00'}
+ 'tag': '093101ef6d789200'}
 """
 
 import cbor2
@@ -52,7 +52,7 @@ class CWTClaimsSchema(Schema):
     exp = fields.Timestamp(data_key=4)
     nbf = fields.Timestamp(data_key=5)
     iat = fields.Timestamp(data_key=6)
-    cti = fields.Raw(data_key=7)
+    cti = fields.Bytes(data_key=7, load_as='hex')
 
 
 class AlgSchema(Schema):
@@ -60,14 +60,14 @@ class AlgSchema(Schema):
 
 
 class KidSchema(Schema):
-    kid = fields.Raw(data_key=4)
+    kid = fields.Bytes(data_key=4, load_as='utf8')
 
 
 class CWTMACSchema(Schema):
     alg = fields.Embedded(fields.Nested(AlgSchema))
     kid = fields.Embedded(fields.Nested(KidSchema))
     payload = fields.Embedded(fields.Nested(CWTClaimsSchema))
-    tag = fields.Raw()
+    tag = fields.Bytes(load_as='hex')
 
     @pre_load
     def unpack_tags(self, data, **kwargs):
