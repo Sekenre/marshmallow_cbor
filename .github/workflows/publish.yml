@@ -17,7 +17,7 @@ jobs:
     - uses: actions/upload-artifact@v2
       with:
         name: linux-wheels
-        path: dist/*-manylinux*.whl
+        path: dist/*.whl
 
   sdist:
     runs-on: ubuntu-latest
