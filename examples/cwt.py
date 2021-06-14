@@ -64,10 +64,10 @@ class KidSchema(Schema):
 
 
 class CWTMACSchema(Schema):
-    alg = fields.Embedded(fields.Nested(AlgSchema))
-    kid = fields.Embedded(fields.Nested(KidSchema))
-    payload = fields.Embedded(fields.Nested(CWTClaimsSchema))
-    tag = fields.Bytes(load_as='hex')
+    alg = fields.Embedded(fields.Nested(AlgSchema))            # Protected
+    kid = fields.Nested(KidSchema)                             # Unprotected
+    payload = fields.Embedded(fields.Nested(CWTClaimsSchema))  # Protected
+    tag = fields.Bytes(load_as='hex')                          # Unprotected
 
     @pre_load
     def unpack_tags(self, data, **kwargs):
@@ -77,11 +77,7 @@ class CWTMACSchema(Schema):
             raise ValidationError
 
     def _deserialize(self, data, many, **kwargs):
-        row = {}
-        row['alg'] = data[0]
-        row['kid'] = data[1]
-        row['payload'] = data[2]
-        row['tag'] = data[3]
+        row = dict(alg=data[0], kid=data[1], payload=data[2], tag=data[3])
         return super()._deserialize(row, many=many, **kwargs)
 
     def _serialize(self, value, many, **kwargs):
