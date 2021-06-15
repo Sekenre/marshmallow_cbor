@@ -15,7 +15,7 @@ Install
 
 ::
 
-    pip install git+https://github.com/Sekenre/marshmallow_cbor.git
+    pip install marshmallow-cbor
 
 
 Examples
@@ -31,6 +31,7 @@ Please see the ``examples/`` folder in this repository.
 TODO
 ====
 
+* Add marshmallow DateTime fields back in as string only fields
 * Tag single items in addition to schemas and nested schemas ✅
 * Field support for all cbor2 supported datatypes ✅(partial)
-* Add it to PyPI
+* Add it to PyPI ✅

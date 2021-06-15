@@ -53,7 +53,5 @@ jobs:
     - name: Upload packages
       uses: pypa/gh-action-pypi-publish@master
       with:
-        verbose: true
         user: __token__
-        password: ${{ secrets.TEST_PYPI }}
-        repository_url: https://test.pypi.org/legacy/
+        password: ${{ secrets.PYPI_PASS }}
