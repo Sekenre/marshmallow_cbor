@@ -23,6 +23,6 @@ class Schema(mSchema):
 
     def _serialize(self, value, many, **kwargs):
         value = super()._serialize(value, many=many, **kwargs)
-        if self.opts.tag:
+        if self.opts.tag and not many:
             value = cbor2.CBORTag(self.opts.tag, value)
         return value

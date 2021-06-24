@@ -83,3 +83,17 @@ class Utf8bytesSchema(Schema):
 def test_field(schema, data, expected):
     assert hexlify(schema.dumps(data)).decode() == expected
     assert schema.loads(unhexlify(expected)) == data
+
+
+@pytest.mark.parametrize(
+    'schema, data, expected',
+    [
+        (
+            Utf8bytesSchema(),
+            dumper({'data': b'\x01\x02\x03\x80'}),
+            {'data': '\x01\x02\x03\\x80'},
+        ),
+    ],
+)
+def test_loads_one_way(schema, data, expected):
+    assert schema.loads(unhexlify(data)) == expected

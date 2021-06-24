@@ -4,7 +4,7 @@ import uuid
 from calendar import timegm
 from datetime import datetime, timezone
 
-import cbor2
+from cbor2 import CBORSimpleValue, CBORTag, dumps, loads
 from marshmallow import fields as m_fields, utils
 
 
@@ -29,10 +29,10 @@ class Tagged(m_fields.Field):
 
     def _serialize(self, nested_obj, attr, obj, **kwargs):
         serialized = self._tagged_field._serialize(nested_obj, attr, obj, **kwargs)
-        return cbor2.CBORTag(self._tag, serialized)
+        return CBORTag(self._tag, serialized)
 
     def _deserialize(self, value, attr, data, partial=None, **kwargs):
-        if isinstance(value, cbor2.CBORTag):
+        if isinstance(value, CBORTag):
             if value.tag == self._tag:
                 value = value.value
             else:
@@ -54,11 +54,11 @@ class Embedded(m_fields.Field):
 
     def _serialize(self, nested_obj, attr, obj, **kwargs):
         serialized = self._embedded_field._serialize(nested_obj, attr, obj, **kwargs)
-        return cbor2.dumps(serialized)
+        return dumps(serialized)
 
     def _deserialize(self, value, attr, data, partial=None, **kwargs):
         if isinstance(value, bytes):
-            value = cbor2.loads(value)
+            value = loads(value)
         return self._embedded_field._deserialize(
             value, attr, data, partial=partial, **kwargs
         )
@@ -78,12 +78,12 @@ class Bytes(m_fields.Field):
     LOAD_AS = {
         None: lambda x: x,
         'hex': lambda x: binascii.hexlify(x).decode(),
-        'utf8': lambda x: x.decode('utf8', errors='backslashescape'),
+        'utf8': lambda x: x.decode('utf-8', errors='backslashreplace'),
     }
     DUMP_AS = {
         None: lambda x: x,
         'hex': lambda x: binascii.unhexlify(x),
-        'utf8': lambda x: x.encode('utf8'),
+        'utf8': lambda x: x.encode('utf-8'),
     }
 
     def __init__(self, *, load_as=None, **kwargs):
@@ -126,6 +126,11 @@ class Timestamp(m_fields.AwareDateTime):
 
 
 class AwareDateTime(m_fields.AwareDateTime):
+    """
+    Passes timezone aware fields directly to cbor encoder to be written as ISO
+    tagged timestamp strings.
+    """
+
     _serialize = m_fields.Field._serialize
 
     def _deserialize(self, value, attr, data, **kwargs):
@@ -136,6 +141,11 @@ class AwareDateTime(m_fields.AwareDateTime):
 
 
 class UUID(m_fields.UUID):
+    """
+    Passes UUID fields directly to cbor encoder to be written as tagged UUID in
+    bytes form.
+    """
+
     _serialize = m_fields.Field._serialize
 
     def _deserialize(self, value, attr, data, **kwargs):
@@ -146,6 +156,11 @@ class UUID(m_fields.UUID):
 
 
 class IP(m_fields.IP):
+    """
+    Passes IP fields directly to cbor encoder to be written as tagged IP in
+    bytes form.
+    """
+
     _serialize = m_fields.Field._serialize
 
     def _deserialize(self, value, attr, data, **kwargs):
@@ -155,13 +170,22 @@ class IP(m_fields.IP):
             return super()._deserialize(value, attr, data, **kwargs)
 
 
+# Wrap the marshmallow IP deserialization with our passthrough IP class.
 IPv4 = type('IPv4', (m_fields.IPv4, IP), {})
 IPv6 = type('IPv6', (m_fields.IPv6, IP), {})
+
+# Non-strict ipv4 interface passed as strings as marshmallow normally.
 IPv4Interface = m_fields.IPv4Interface
 IPv6Interface = m_fields.IPv6Interface
 
 
 class IPNetwork(m_fields.Field):
+    """
+    Passes IP network fields directly to cbor encoder to be written as tagged items
+    in bytes form. This is the strict kind of network address where the host part
+    is not allowed.
+    """
+
     default_error_messages = {"invalid_ip_network": "Not a valid IP Network."}
 
     DESERIALIZATION_CLASS = None
@@ -195,6 +219,29 @@ class IPv6Network(IPNetwork):
     DESERIALIZATION_CLASS = ipaddress.IPv6Network
 
 
+# Fields specific to CBOR
+
+
+class SimpleValue(m_fields.Field):
+    """
+    CBOR Simple Value (positive integer between 0 and 255)
+    """
+
+    default_error_messages = {"simple": "Not a CBOR Simple Value"}
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        if isinstance(value, CBORSimpleValue):
+            return value
+        else:
+            return CBORSimpleValue(value)
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        if isinstance(value, CBORSimpleValue):
+            return value
+        else:
+            raise self._make_error("simple")
+
+
 # Unchanged fields from marshmallow
 
 Field = m_fields.Field
@@ -212,6 +259,7 @@ Boolean = m_fields.Boolean
 Float = m_fields.Float
 Time = m_fields.Time
 Date = m_fields.Date
+DateTime = m_fields.DateTime
 TimeDelta = m_fields.TimeDelta
 Url = m_fields.Url
 URL = m_fields.URL
