@@ -26,12 +26,13 @@ Please see the ``examples/`` folder in this repository.
 * `Plain string keys & values, regular marshmallow validation <examples/person.py>`_
 * `CBOR Tagged item schemas <examples/tags.py>`_
 * `CWT (RFC 8392) token validation <examples/cwt.py>`_
+* `DCC (Digital Green/Digital COVID) certificate <examples/dcc.py>`_
 
 
 TODO
 ====
 
-* Add marshmallow DateTime fields back in as string only fields
+* Add marshmallow DateTime fields back in as string only fields ✅
 * Tag single items in addition to schemas and nested schemas ✅
 * Field support for all cbor2 supported datatypes ✅(partial)
 * Add it to PyPI ✅
