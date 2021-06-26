@@ -21,19 +21,18 @@ class Tagged(m_fields.Field):
     default_error_messages = {'wrong_tag': 'unexpected tag'}
 
     def __init__(self, tagged_field, *, tag, **kwargs):
-        if not isinstance(tag, int) or tag < 0:
-            raise ValueError('tag must be an int > 0')
         self._tagged_field = tagged_field
-        self._tag = tag
+        self._tag = CBORTag(tag, None)
         super().__init__(**kwargs)
 
     def _serialize(self, nested_obj, attr, obj, **kwargs):
         serialized = self._tagged_field._serialize(nested_obj, attr, obj, **kwargs)
-        return CBORTag(self._tag, serialized)
+        self._tag.value = serialized
+        return self._tag
 
     def _deserialize(self, value, attr, data, partial=None, **kwargs):
         if isinstance(value, CBORTag):
-            if value.tag == self._tag:
+            if value.tag == self._tag.tag:
                 value = value.value
             else:
                 self.make_error('wrong_tag', input=value)
@@ -119,8 +118,6 @@ class Timestamp(m_fields.AwareDateTime):
     def _deserialize(self, value, attr, data, **kwargs):
         if isinstance(value, datetime):
             return value
-        elif isinstance(value, str):
-            return super()._deserialize(value, attr, data, **kwargs)
         else:
             return datetime.fromtimestamp(value, tz=timezone.utc)
 
@@ -239,7 +236,7 @@ class SimpleValue(m_fields.Field):
         if isinstance(value, CBORSimpleValue):
             return value
         else:
-            raise self._make_error("simple")
+            raise self.make_error("simple")
 
 
 # Unchanged fields from marshmallow

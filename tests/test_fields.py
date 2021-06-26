@@ -6,6 +6,7 @@ import cbor2
 import pytest
 
 from marshmallow_cbor import Schema, fields
+from marshmallow import ValidationError
 
 
 def dumper(data, **kwargs):
@@ -22,6 +23,10 @@ class DTSchema(Schema):
 
 class TSSchema(Schema):
     ts = fields.Tagged(fields.Timestamp(), tag=1)
+
+
+class BareTSSchema(Schema):
+    ts = fields.Timestamp()
 
 
 # IP addresses
@@ -46,6 +51,10 @@ class Utf8bytesSchema(Schema):
     data = fields.Bytes(load_as="utf8")
 
 
+class SVSchema(Schema):
+    data = fields.SimpleValue()
+
+
 @pytest.mark.parametrize(
     'schema, data, expected',
     [
@@ -63,6 +72,21 @@ class Utf8bytesSchema(Schema):
             ),
         ),
         (
+            TSSchema(),
+            {'ts': dt.datetime(2021, 6, 30, 19, 8, 7, 6, tzinfo=dt.timezone.utc)},
+            dumper(
+                {'ts': dt.datetime(2021, 6, 30, 19, 8, 7, 6, tzinfo=dt.timezone.utc)},
+                datetime_as_timestamp=True,
+            ),
+        ),
+        (
+            BareTSSchema(),
+            {'ts': dt.datetime(1970, 1, 2, 10, 17, 36, tzinfo=dt.timezone.utc)},
+            dumper(
+                {'ts': 123456},
+            ),
+        ),
+        (
             IPSchema(),
             {'ip': ipaddress.IPv4Address('192.168.0.1')},
             dumper({'ip': ipaddress.IPv4Address('192.168.0.1')}),
@@ -77,6 +101,11 @@ class Utf8bytesSchema(Schema):
             Utf8bytesSchema(),
             {'data': '\u0001\u0002\u0003'},
             dumper({'data': b'\x01\x02\x03'}),
+        ),
+        (
+            SVSchema(),
+            {'data': cbor2.CBORSimpleValue(9)},
+            dumper({'data': cbor2.CBORSimpleValue(9)}),
         ),
     ],
 )
@@ -97,3 +126,17 @@ def test_field(schema, data, expected):
 )
 def test_loads_one_way(schema, data, expected):
     assert schema.loads(unhexlify(data)) == expected
+
+
+def test_invalid_string_display():
+    with pytest.raises(ValueError):
+
+        class Fake(Schema):
+            a = fields.Bytes(load_as="extra spicy")
+
+
+def test_simple_error():
+    schema = SVSchema()
+    with pytest.raises(ValidationError) as exc_info:
+        schema.loads(cbor2.dumps({'data': 97}))
+    assert exc_info.value.args[0] == {'data': ['Not a CBOR Simple Value']}
